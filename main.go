@@ -10,9 +10,12 @@ import (
 func main() {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/", handleRoot)
+	mux.HandleFunc("/{$}", handleRoot)
 	mux.HandleFunc("/goodbye", handleGoodbye)
 	mux.HandleFunc("/hello/", handleHelloParameterized)
+	mux.HandleFunc("/responses/{user}/hello/", handleUserResponsesHello)
+	mux.HandleFunc("/user/hello/", handleHelloHeader)
+
 	log.Fatal(http.ListenAndServe(":8080", mux))
 }
 
@@ -43,6 +46,27 @@ func handleHelloParameterized(w http.ResponseWriter, r *http.Request) {
 		userName = userList[0]
 	}
 
+	handleHello(w, userName)
+}
+
+func handleUserResponsesHello(w http.ResponseWriter, r *http.Request) {
+	userName := r.PathValue("user")
+
+	handleHello(w, userName)
+}
+
+func handleHelloHeader(w http.ResponseWriter, r *http.Request) {
+	userName := r.Header.Get("user")
+
+	if userName == "" {
+		http.Error(w, "invalid username provided", http.StatusBadRequest)
+		return
+	}
+
+	handleHello(w, userName)
+}
+
+func handleHello(w http.ResponseWriter, userName string) {
 	var output bytes.Buffer
 	output.WriteString("Hello, ")
 	output.WriteString(userName)
