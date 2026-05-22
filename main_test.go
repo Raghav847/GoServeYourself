@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -150,5 +151,82 @@ func TestHelloHeaderNoHeader(t *testing.T) {
 	expectedMessage := []byte("invalid username provided\n")
 	if !bytes.Equal(expectedMessage, w.Body.Bytes()) {
 		t.Errorf("bad return, got: %q, expected %q", w.Body.Bytes(), expectedMessage)
+	}
+}
+
+func TestHandleJSON(t *testing.T) {
+	testRequest := UserData{
+		Name: "Test Man",
+	}
+
+	marshalledRequestBody, err := json.Marshal(testRequest)
+	if err != nil {
+		t.Fatalf("error marshalling test data: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/json", bytes.NewBuffer(marshalledRequestBody))
+
+	w := httptest.NewRecorder()
+
+	handleJSON(w, req)
+
+	desiredCode := http.StatusOK
+	if w.Code != desiredCode {
+		t.Errorf("bad response code, expected %v but got %v\nbody: %s\n",
+			desiredCode, w.Code, w.Body.String())
+	}
+
+	expectedMessage := []byte("Hello, Test Man!\n")
+	if !bytes.Equal(expectedMessage, w.Body.Bytes()) {
+		t.Errorf("bad return, got: %q, expected %q", w.Body.Bytes(), expectedMessage)
+	}
+}
+
+func TestHandleJSONEmptyBody(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/json", nil)
+
+	// we call this w because it will take the place of the http.ResponseWriter which is conventionally set to w
+	w := httptest.NewRecorder()
+
+	handleJSON(w, req)
+
+	desiredCode := http.StatusBadRequest
+	if w.Code != desiredCode {
+		t.Errorf("bad response code, expected: %v but got: %v\nbody: %s\n",
+			desiredCode, w.Code, w.Body.String())
+	}
+
+	expectedMessage := []byte("bad request body\n")
+	if !bytes.Equal(expectedMessage, w.Body.Bytes()) {
+		t.Errorf("bad return, got: %q, expected %q", w.Body.String(), expectedMessage)
+	}
+}
+
+func TestHandleJSONEmptyNameField(t *testing.T) {
+	testRequest := UserData{
+		Name: "",
+	}
+
+	marshalledRequestBody, err := json.Marshal(testRequest)
+	if err != nil {
+		t.Fatalf("error marshalling test data: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/json", bytes.NewBuffer(marshalledRequestBody))
+
+	// we call this w because it will take the place of the http.ResponseWriter which is conventionally set to w
+	w := httptest.NewRecorder()
+
+	handleJSON(w, req)
+
+	desiredCode := http.StatusBadRequest
+	if w.Code != desiredCode {
+		t.Errorf("bad response code, expected: %v but got: %v\nbody: %s\n",
+			desiredCode, w.Code, w.Body.String())
+	}
+
+	expectedMessage := []byte("invalid username provided\n")
+	if !bytes.Equal(expectedMessage, w.Body.Bytes()) {
+		t.Errorf("bad return, got: %q, expected %q", w.Body.String(), expectedMessage)
 	}
 }
